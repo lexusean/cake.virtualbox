@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net452</TargetFrameworks>
+		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+  </PropertyGroup>
+	
+	<ItemGroup>
+    <PackageReference Include="Cake.Core" Version="0.20.0" />
+  </ItemGroup>
+	
+	<ItemGroup>
+	  <Folder Include="Commands\" />
+	  <Folder Include="Settings\" />
+	  <Folder Include="Settings\" />
+	</ItemGroup>
+
+</Project>

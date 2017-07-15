@@ -10,6 +10,8 @@ namespace Cake.Virtualbox.Models
 {
     public class VboxHdd
     {
+        #region Static Methods
+
         public static VboxHdd GetHdd(string hddBlockStr)
         {
             var newHdd = new VboxHdd();
@@ -17,6 +19,10 @@ namespace Cake.Virtualbox.Models
 
             return newHdd;
         }
+
+        #endregion
+
+        #region Public Properties
 
         public string UuidStr { get; set; }
         public string ParentUuidStr { get; set; }
@@ -64,6 +70,10 @@ namespace Cake.Virtualbox.Models
             get { return this.ParentUuid != null; }
         }
 
+        #endregion
+
+        #region Private Methods
+
         private void Parse(string blockStr)
         {
             this.ParseUuid(blockStr);
@@ -109,5 +119,7 @@ namespace Cake.Virtualbox.Models
             var last = match.Groups.Cast<Group>().Last();
             this.LocationStr = last == null ? string.Empty : last.Value.Trim();
         }
+
+        #endregion
     }
 }

@@ -10,13 +10,30 @@ namespace Cake.Virtualbox.Models
 {
     public class VboxVm
     {
-        public static VboxVm GetVm(string vmStr)
+        #region Static Methods
+
+        public static VboxVm GetVm(
+            string vmStr,
+            Func<VboxVm, string> getInfoStrAction = null,
+            Func<Guid, VboxHdd> getHddAction = null)
         {
-            var newVm = new VboxVm();
+            if (string.IsNullOrWhiteSpace(vmStr))
+                return null;
+
+            var newVm = new VboxVm()
+            {
+                GetInfoStrAction = getInfoStrAction,
+                GetHddAction = getHddAction
+            };
+
             newVm.Parse(vmStr);
 
             return newVm;
         }
+
+        #endregion
+
+        #region Public Properties
 
         public string Name { get; set; }
         public string UuidStr { get; set; }
@@ -32,6 +49,38 @@ namespace Cake.Virtualbox.Models
                 return o;
             }
         }
+
+        private VboxVmInfo _vmInfo = null;
+        public VboxVmInfo VmInfo
+        {
+            get
+            {
+                if (this._vmInfo != null)
+                    return this._vmInfo;
+
+                if (this.GetInfoStrAction != null)
+                {
+                    var str = this.GetInfoStrAction(this);
+                    if (!string.IsNullOrWhiteSpace(str))
+                    {
+                        this._vmInfo = VboxVmInfo.GetVmInfo(this, str, this.GetHddAction);
+                    }
+                }
+
+                return this._vmInfo;
+            }
+        }
+
+        #endregion
+
+        #region Internal Properties
+
+        internal Func<VboxVm, string> GetInfoStrAction { get; set; }
+        internal Func<Guid, VboxHdd> GetHddAction { get; set; }
+
+        #endregion
+
+        #region Private Methods
 
         private void Parse(string str)
         {
@@ -49,5 +98,7 @@ namespace Cake.Virtualbox.Models
             this.Name = first == null ? string.Empty : first.Value.Trim();
             this.UuidStr = last == null ? string.Empty : last.Value.Trim();
         }
+
+        #endregion
     }
 }

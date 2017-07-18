@@ -59,7 +59,26 @@ namespace Cake.Virtualbox.Commands
             ProcessSettings procSettings,
             Action<IProcess> procCallback)
         {
-            this.Runner.Invoke(settings, args, procSettings, procCallback);
+            
+            this.Runner.Invoke(settings, args, this.GetProcessSettings(procSettings, procCallback != null), procCallback);
+        }
+
+        protected ProcessSettings GetProcessSettings(ProcessSettings originalSettings = null, bool isRedirected = false)
+        {
+            var settings = originalSettings != null ? originalSettings : this.CreateRedirectedProcessSettings();
+            settings.RedirectStandardOutput = isRedirected;
+            settings.RedirectStandardError = isRedirected;
+
+            return settings;
+        }
+
+        protected ProcessSettings CreateRedirectedProcessSettings()
+        {
+            return new ProcessSettings()
+            {
+                RedirectStandardError = true,
+                RedirectStandardOutput = true
+            };
         }
 
         #endregion

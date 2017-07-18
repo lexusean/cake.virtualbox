@@ -137,7 +137,7 @@ namespace Cake.Virtualbox
             var args = new ProcessArgumentBuilder();
             args.Append("--version");
 
-            this.Run(this.Settings, args, null, callback);
+            this.Run(this.Settings, args, this.GetProcessSettings(callback != null), callback);
         }
 
         public void ListVms(Action<IProcess> callback = null)
@@ -146,7 +146,7 @@ namespace Cake.Virtualbox
             args.Append("list");
             args.Append("vms");
 
-            this.Run(this.Settings, args, null, callback);
+            this.Run(this.Settings, args, this.GetProcessSettings(callback != null), callback);
         }
 
         public void ShowVmInfo(string vmName, Action<IProcess> callback = null)
@@ -162,7 +162,7 @@ namespace Cake.Virtualbox
                 args.Append("showvminfo");
                 args.Append(vmName);
 
-                this.Run(this.Settings, args, null, callback);
+                this.Run(this.Settings, args, this.GetProcessSettings(callback != null), callback);
             }
         }
 
@@ -172,7 +172,7 @@ namespace Cake.Virtualbox
             args.Append("showvminfo");
             args.Append(vmId.ToString());
 
-            this.Run(this.Settings, args, null, callback);
+            this.Run(this.Settings, args, this.GetProcessSettings(callback != null), callback);
         }
 
         public void CreateVm(Action<CreateVmSettings> configAction = null, Action<IProcess> callback = null)
@@ -183,51 +183,10 @@ namespace Cake.Virtualbox
             this.RunCreateVm(settings, callback);
         }
 
-        public void UnregisterVm(string nameOrUuid, Action<IProcess> callback = null)
+        public void RemoveVm(string nameOrUuid, Action<IProcess> callback = null)
         {
-            if (string.IsNullOrWhiteSpace(nameOrUuid))
-                throw new ArgumentNullException(nameof(nameOrUuid), "the name or uuid of the vm cannot be empty");
-
-            var args = new ProcessArgumentBuilder();
-            args.Append("unregistervm");
-            args.Append(nameOrUuid);
-            args.Append("--delete");
-
-            this.Run(this.Settings, args, null, callback);
-        }
-
-        public void RemoveBoxByName(string boxName)
-        {
-            //begin removing vms
-            var vmList = this.Vms.ToArray();
-            var vmsThatMatchBox = vmList
-                .Where(t => (t.Name ?? string.Empty).Equals(boxName, StringComparison.InvariantCultureIgnoreCase))
-                .ToArray();
-
-            this.Log.Information("Found {0} vms that match box: {1}", vmsThatMatchBox.Length, boxName);
-
-            foreach (var vm in vmsThatMatchBox)
-            {
-                if (vm.Uuid == null)
-                    continue;
-
-                this.Log.Information("Unregistering vm {0} with UUID: {1}", vm.Name, vm.Uuid.ToString());
-                this.UnregisterVm(vm.Uuid.ToString());
-
-                if (vm.VmInfo != null)
-                {
-                    foreach (var disk in vm.VmInfo.Disks)
-                    {
-                        if (disk.Uuid == null)
-                            continue;
-
-                        this.Log.Information("Removing disk UUID: {0} for vm UUID: {1}", disk.Uuid.ToString(), vm.Uuid.ToString());
-                        this.HddRunner.RemoveDisks(disk.Uuid.ToString());
-                    }
-                }
-            }
-
-            //then disks
+            this.RemoveBoxVms(nameOrUuid, callback);
+            this.RemoveBoxDisks(nameOrUuid, callback);
         }
 
         #endregion
@@ -258,6 +217,98 @@ namespace Cake.Virtualbox
         #endregion
 
         #region Private Methods
+
+        private void RemoveBoxVms(string nameOrUuid, Action<IProcess> callback = null)
+        {
+            var boxId = Guid.Empty;
+            Guid.TryParse(nameOrUuid, out boxId);
+
+            var vmList = this.Vms.ToArray();
+            var vmsMatchQuery = vmList.AsQueryable();
+            if (boxId != Guid.Empty)
+            {
+                vmsMatchQuery = vmsMatchQuery
+                    .Where(t => t.Uuid == boxId);
+            }
+            else
+            {
+                vmsMatchQuery = vmsMatchQuery
+                    .Where(t => (t.Name ?? string.Empty).Equals(nameOrUuid,
+                        StringComparison.InvariantCultureIgnoreCase));
+            }
+
+            var vmsThatMatchBox = vmsMatchQuery.ToArray();
+
+            this.Log.Information("Found {0} vms that match box: {1}", vmsThatMatchBox.Length, nameOrUuid);
+
+            foreach (var vm in vmsThatMatchBox)
+            {
+                if (vm.Uuid == null)
+                    continue;
+
+                this.Log.Information("Unregistering vm {0} with UUID: {1}", vm.Name, vm.Uuid.ToString());
+                this.UnregisterVm(vm.Uuid.ToString(), callback);
+            }
+        }
+
+        private void RemoveBoxDisks(string nameOrUuid, Action<IProcess> callback = null)
+        {
+            var diskId = Guid.Empty;
+            Guid.TryParse(nameOrUuid, out diskId);
+
+            var diskList = this.HddRunner.Hdds.ToArray();
+            var disksMatchQuery = diskList.AsQueryable();
+            if (diskId != Guid.Empty)
+            {
+                disksMatchQuery = disksMatchQuery
+                    .Where(t => t.Uuid == diskId);
+            }
+            else
+            {
+                disksMatchQuery = disksMatchQuery
+                    .Where(t => (t.LocationStr ?? string.Empty).Contains(nameOrUuid));
+            }
+
+            var disksThatMatchBox = disksMatchQuery.ToArray();
+
+            this.Log.Information("Found {0} disks that match box: {1}", disksThatMatchBox.Length, nameOrUuid);
+
+            foreach (var disk in disksThatMatchBox)
+            {
+                if (disk.Uuid == null)
+                    continue;
+
+                this.Log.Information("Removing disk {0} with Location: {1}", disk.Uuid.ToString(), disk.LocationStr);
+                this.HddRunner.RemoveDisks(disk.Uuid.ToString(), callback);
+            }
+        }
+
+        private void UnregisterVm(string nameOrUuid, Action<IProcess> callback = null)
+        {
+            if (string.IsNullOrWhiteSpace(nameOrUuid))
+                throw new ArgumentNullException(nameof(nameOrUuid), "the name or uuid of the vm cannot be empty");
+
+            var args = new ProcessArgumentBuilder();
+            args.Append("unregistervm");
+            args.Append(nameOrUuid);
+            args.Append("--delete");
+
+            this.Run(this.Settings, args, this.GetProcessSettings(callback != null), callback);
+        }
+
+        private ProcessSettings GetProcessSettings(bool isRedirected = false)
+        {
+            return isRedirected ? this.CreateRedirectedProcessSettings() : null;
+        }
+
+        private ProcessSettings CreateRedirectedProcessSettings()
+        {
+            return new ProcessSettings()
+            {
+                RedirectStandardError = true,
+                RedirectStandardOutput = true
+            };
+        }
 
         private string GetVersion()
         {
@@ -322,7 +373,7 @@ namespace Cake.Virtualbox
 
             this.Log.Information("createhd name: {0}", diskSetting.FileName);
 
-            this.Run(this.Settings, args, null, callback);
+            this.Run(this.Settings, args, this.GetProcessSettings(callback != null), callback);
         }
 
         private void RunAttachStorage(
@@ -352,7 +403,7 @@ namespace Cake.Virtualbox
 
             this.Log.Information("storageattach name: {0} to controller: {1}", diskSetting.FileName, controllerSetting.Name);
 
-            this.Run(this.Settings, args, null, callback);
+            this.Run(this.Settings, args, this.GetProcessSettings(callback != null), callback);
         }
 
         private void RunCreateStorageCtl(string vmName, CreateVmSettings.VboxStorageControllerSetting controllerSetting, Action<IProcess> callback = null)
@@ -406,7 +457,7 @@ namespace Cake.Virtualbox
             });
         }
 
-        private void RunCreateVm(CreateVmSettings vmSetting, Action<IProcess> callback = null)
+        private void RunCreateVm(CreateVmSettings vmSetting, Action<IProcess> callback = null, int retryTimes = 0)
         {
             if (vmSetting == null)
                 return;
@@ -421,11 +472,13 @@ namespace Cake.Virtualbox
 
             this.Log.Information("createvm name: {0}", vmSetting.VmName);
 
-            this.Run(this.Settings, args, null, proc =>
+            this.Run(this.Settings, args, this.GetProcessSettings(callback != null), proc =>
             {
                 if (proc.GetExitCode() != 0)
                 {
-                    this.Log.Error("Failed to create vm for: {0}. Bailing", vmSetting.VmName);
+                    var errStrings = proc.GetStandardError().ToArray();
+                    var stderr = string.Join("\n", errStrings);
+                    this.Log.Error("Failed to create vm for: {0}. Bailing. Error: {1}", vmSetting.VmName, stderr);
                 }
                 else
                 {

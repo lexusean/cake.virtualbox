@@ -78,7 +78,7 @@ namespace Cake.Virtualbox.Commands
             var args = new ProcessArgumentBuilder();
             args.Append("closemedium");
             args.Append("disk");
-            args.Append(nameOrUuid);
+            args.Append($"\"{nameOrUuid}\"");
             args.Append("--delete");
 
             this.Run(this.Settings, args, null, callback);

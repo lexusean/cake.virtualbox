@@ -4,10 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Cake.Virtualbox.Test.Unit
+namespace Cake.Virtualbox.Test.System
 {
     public static class Global
     {
-        public const string TestType = "unit";
+        public const string TestType = "system";
     }
 }

@@ -12,8 +12,10 @@ namespace Cake.Virtualbox.Test.Unit
     [TestClass]
     public class VirtualboxRunnerTests
     {
+        #region Test Methods
+
         [TestMethod]
-        [TestCategory(Global.UnitTest)]
+        [TestCategory(Global.TestType)]
         public void DisplayVersion_CheckArg_Works()
         {
             var fixture = new VirtualboxFixture(r => r.DisplayVersion());
@@ -27,7 +29,7 @@ namespace Cake.Virtualbox.Test.Unit
         }
 
         [TestMethod]
-        [TestCategory(Global.UnitTest)]
+        [TestCategory(Global.TestType)]
         public void Version_CheckArg_Works()
         {
             var version = "test";
@@ -39,7 +41,7 @@ namespace Cake.Virtualbox.Test.Unit
         }
 
         [TestMethod]
-        [TestCategory(Global.UnitTest)]
+        [TestCategory(Global.TestType)]
         public void Unregistervm_CheckArg_Ok()
         {
             var fixture = new VirtualboxFixture(r => r.UnregisterVm("testuuid"));
@@ -55,7 +57,7 @@ namespace Cake.Virtualbox.Test.Unit
         }
 
         [TestMethod]
-        [TestCategory(Global.UnitTest)]
+        [TestCategory(Global.TestType)]
         [ExpectedException(typeof(ArgumentNullException), "Failed to throw exception when missing vm name parameter")]
         public void Unregistervm_CheckArg_Fail()
         {
@@ -65,7 +67,7 @@ namespace Cake.Virtualbox.Test.Unit
         }
 
         [TestMethod]
-        [TestCategory(Global.UnitTest)]
+        [TestCategory(Global.TestType)]
         public void ValidateVms_Parsing_Default_Ok()
         {
             const string testStr =
@@ -81,7 +83,7 @@ namespace Cake.Virtualbox.Test.Unit
         }
 
         [TestMethod]
-        [TestCategory(Global.UnitTest)]
+        [TestCategory(Global.TestType)]
         public void ValidateVms_Parsing_Full_Ok()
         {
             const string testStr =
@@ -130,7 +132,7 @@ namespace Cake.Virtualbox.Test.Unit
         }
 
         [TestMethod]
-        [TestCategory(Global.UnitTest)]
+        [TestCategory(Global.TestType)]
         public void ListVms_CheckArg_Ok()
         {
             var fixture = new VirtualboxFixture(r => r.ListVms());
@@ -145,7 +147,7 @@ namespace Cake.Virtualbox.Test.Unit
         }
 
         [TestMethod]
-        [TestCategory(Global.UnitTest)]
+        [TestCategory(Global.TestType)]
         public void ShowVmInfo_CheckArg_Ok()
         {
             var id = Guid.NewGuid();
@@ -159,5 +161,7 @@ namespace Cake.Virtualbox.Test.Unit
             Assert.AreEqual("showvminfo", args[0].Render(), "failed to set showvminfo argument");
             Assert.IsTrue(id.ToString().Equals(args[1].Render(), StringComparison.InvariantCultureIgnoreCase), "failed to set UUID argument");
         }
+
+        #endregion
     }
 }

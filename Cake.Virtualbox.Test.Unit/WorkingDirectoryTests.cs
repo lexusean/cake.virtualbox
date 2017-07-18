@@ -12,7 +12,7 @@ namespace Cake.Virtualbox.Test.Unit
     public class WorkingDirectoryTests
     {
         [TestMethod]
-        [TestCategory(Global.UnitTest)]
+        [TestCategory(Global.TestType)]
         public void Should_Set_Valid_DirectoryPath()
         {
             var fixture = new VirtualboxFixture(r => r.FromPath("./vm").DisplayVersion());
@@ -24,7 +24,7 @@ namespace Cake.Virtualbox.Test.Unit
         }
 
         [TestMethod]
-        [TestCategory(Global.UnitTest)]
+        [TestCategory(Global.TestType)]
         public void Should_Run_With_Defaults()
         {
             var fixture = new VirtualboxFixture(r => r.DisplayVersion());
@@ -34,7 +34,7 @@ namespace Cake.Virtualbox.Test.Unit
         }
 
         [TestMethod]
-        [TestCategory(Global.UnitTest)]
+        [TestCategory(Global.TestType)]
         [ExpectedException(typeof(System.IO.DirectoryNotFoundException), "Expected DirectoryNotFoundException")]
         public void Should_Throw_On_NonExistent_Directory()
         {

@@ -82,7 +82,7 @@ namespace Cake.Virtualbox.Models
 
         private void ParseHdds(string str)
         {
-            const string regex = @"(?:^(?:SATA|IDE)[\s]*\(.*\):[\s]+.*UUID:[\s]+)([a-zA-Z0-9\-]+)(?:\)[\s]*$)";
+            const string regex = @"(?:^.+[\s]*\([0-9]+[,\s]+[0-9]+\)\:[\s]*.*UUID:[\s]+)([a-zA-Z0-9\-]+)(?:\)[\s]*$)";
             var options = RegexOptions.IgnoreCase | RegexOptions.Multiline;
 
             var matches = Regex.Matches(str, regex, options);

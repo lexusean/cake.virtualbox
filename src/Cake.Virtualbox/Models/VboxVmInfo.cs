@@ -8,10 +8,20 @@ using System.Threading.Tasks;
 
 namespace Cake.Virtualbox.Models
 {
+    /// <summary>
+    /// VM Detail Model
+    /// </summary>
     public class VboxVmInfo
     {
         #region Static Methods
 
+        /// <summary>
+        /// Convert string to VM Info Model
+        /// </summary>
+        /// <param name="vm">VM Loaded From</param>
+        /// <param name="vmStr">vboxmange showvminfo uuid</param>
+        /// <param name="getHddInfoAction">function to get disk info</param>
+        /// <returns></returns>
         public static VboxVmInfo GetVmInfo(
             VboxVm vm, 
             string vmStr, 
@@ -31,10 +41,21 @@ namespace Cake.Virtualbox.Models
 
         #region Public Properties
 
+        /// <summary>
+        /// VM Record
+        /// </summary>
         public VboxVm Vm { get; }
+
+        /// <summary>
+        /// Disk Ids associated with VM
+        /// </summary>
         public List<Guid> HddIds { get; private set; } = new List<Guid>();
 
         private List<VboxHdd> _disks = null;
+
+        /// <summary>
+        /// Disk Models lazy loaded
+        /// </summary>
         public List<VboxHdd> Disks
         {
             get

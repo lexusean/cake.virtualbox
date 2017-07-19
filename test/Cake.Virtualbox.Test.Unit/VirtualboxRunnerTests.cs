@@ -42,26 +42,10 @@ namespace Cake.Virtualbox.Test.Unit
 
         [TestMethod]
         [TestCategory(Global.TestType)]
-        public void Unregistervm_CheckArg_Ok()
-        {
-            var fixture = new VirtualboxFixture(r => r.UnregisterVm("testuuid"));
-
-            var result = fixture.Run();
-
-            Assert.AreEqual(3, result.Process.Arguments.Count, "should only have 3 argument defined");
-
-            var args = result.Process.Arguments.ToList();
-            Assert.AreEqual("unregistervm", args[0].Render(), "failed to set unregistervm argument");
-            Assert.AreEqual("testuuid", args[1].Render(), "failed to set nameOrUuid argument");
-            Assert.AreEqual("--delete", args[2].Render(), "failed to set --delete argument");
-        }
-
-        [TestMethod]
-        [TestCategory(Global.TestType)]
         [ExpectedException(typeof(ArgumentNullException), "Failed to throw exception when missing vm name parameter")]
-        public void Unregistervm_CheckArg_Fail()
+        public void RemoveVm_CheckArg_Fail()
         {
-            var fixture = new VirtualboxFixture(r => r.UnregisterVm(null));
+            var fixture = new VirtualboxFixture(r => r.RemoveVm(null));
 
             var result = fixture.Run();
         }

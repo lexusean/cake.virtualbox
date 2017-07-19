@@ -20,6 +20,13 @@ namespace Cake.Virtualbox
     {
         #region Static Methods
 
+        /// <summary>
+        /// Get VM Models for VM String vboxmange list vms
+        /// </summary>
+        /// <param name="vmList">output from vboxmanage list vms</param>
+        /// <param name="getVmInfoFunc">function to get VM Detail Model</param>
+        /// <param name="getHddFunc">function to get VM Disk Model</param>
+        /// <returns>VM Models for host</returns>
         public static IEnumerable<VboxVm> GetVms(
             string vmList,
             Func<Guid, string> getVmInfoFunc = null,
@@ -56,13 +63,22 @@ namespace Cake.Virtualbox
 
         #region Public Properties
 
+        /// <summary>
+        /// Wrapper around virtualbox disk cli functionality
+        /// </summary>
         public VirtualboxHddRunner HddRunner { get; }
 
+        /// <summary>
+        /// Version of vboxmanage
+        /// </summary>
         public string Version
         {
             get { return this.GetVersion(); }
         }
 
+        /// <summary>
+        /// VMs on host
+        /// </summary>
         public IEnumerable<VboxVm> Vms
         {
             get
@@ -96,6 +112,14 @@ namespace Cake.Virtualbox
 
         #region Ctor
 
+        /// <summary>
+        /// Wrapper CTor
+        /// </summary>
+        /// <param name="fileSystem"></param>
+        /// <param name="environment"></param>
+        /// <param name="processRunner"></param>
+        /// <param name="tools"></param>
+        /// <param name="log"></param>
         public VirtualboxRunner(
             IFileSystem fileSystem,
             ICakeEnvironment environment,
@@ -132,6 +156,10 @@ namespace Cake.Virtualbox
             return this;
         }
 
+        /// <summary>
+        /// Displays vboxmanage --version
+        /// </summary>
+        /// <param name="callback"></param>
         public void DisplayVersion(Action<IProcess> callback = null)
         {
             var args = new ProcessArgumentBuilder();
@@ -140,6 +168,10 @@ namespace Cake.Virtualbox
             this.Run(this.Settings, args, this.GetProcessSettings(callback != null), callback);
         }
 
+        /// <summary>
+        /// Lists VMs vboxmanage list vms
+        /// </summary>
+        /// <param name="callback"></param>
         public void ListVms(Action<IProcess> callback = null)
         {
             var args = new ProcessArgumentBuilder();
@@ -149,6 +181,11 @@ namespace Cake.Virtualbox
             this.Run(this.Settings, args, this.GetProcessSettings(callback != null), callback);
         }
 
+        /// <summary>
+        /// Show VM Detail for vm. vboxmange showvminfo 'vm name'
+        /// </summary>
+        /// <param name="vmName">VM name</param>
+        /// <param name="callback"></param>
         public void ShowVmInfo(string vmName, Action<IProcess> callback = null)
         {
             Guid vmId = Guid.Empty;
@@ -166,6 +203,11 @@ namespace Cake.Virtualbox
             }
         }
 
+        /// <summary>
+        /// Show VM Detail for vm. vboxmange showvminfo 'vmid'
+        /// </summary>
+        /// <param name="vmId">UUID of vm</param>
+        /// <param name="callback"></param>
         public void ShowVmInfo(Guid vmId, Action<IProcess> callback = null)
         {
             var args = new ProcessArgumentBuilder();
@@ -175,6 +217,11 @@ namespace Cake.Virtualbox
             this.Run(this.Settings, args, this.GetProcessSettings(callback != null), callback);
         }
 
+        /// <summary>
+        /// Creates VM base on config settings
+        /// </summary>
+        /// <param name="configAction">settings object to configure what to have virtualbox create</param>
+        /// <param name="callback"></param>
         public void CreateVm(Action<CreateVmSettings> configAction = null, Action<IProcess> callback = null)
         {
             var settings = new CreateVmSettings();
@@ -183,8 +230,16 @@ namespace Cake.Virtualbox
             this.RunCreateVm(settings, callback);
         }
 
+        /// <summary>
+        /// Unregisters VM and removes associated disks
+        /// </summary>
+        /// <param name="nameOrUuid">vm name|vm UUID|disk path string</param>
+        /// <param name="callback"></param>
         public void RemoveVm(string nameOrUuid, Action<IProcess> callback = null)
         {
+            if (string.IsNullOrWhiteSpace(nameOrUuid))
+                throw new ArgumentNullException(nameof(nameOrUuid), "the name or uuid of the vm cannot be empty");
+
             this.RemoveBoxVms(nameOrUuid, callback);
             this.RemoveBoxDisks(nameOrUuid, callback);
         }
@@ -193,11 +248,20 @@ namespace Cake.Virtualbox
 
         #region Override Members
 
+        /// <summary>
+        /// Defines tool name
+        /// </summary>
+        /// <returns>User friendly Tool Name</returns>
         protected override string GetToolName()
         {
             return "VirtualBox by Oracle";
         }
 
+        /// <summary>
+        /// Working directory to run all commands
+        /// </summary>
+        /// <param name="settings">vboxmange settings</param>
+        /// <returns>Working Directory Path</returns>
         protected override DirectoryPath GetWorkingDirectory(VirtualboxSettings settings)
         {
             if (this.WorkingDirectory == null)
@@ -209,6 +273,10 @@ namespace Cake.Virtualbox
             return this.WorkingDirectory;
         }
 
+        /// <summary>
+        /// Get tool names and locations
+        /// </summary>
+        /// <returns>vboxmanage.exe. Expects resolve through PATH</returns>
         protected override IEnumerable<string> GetToolExecutableNames()
         {
             yield return "vboxmanage.exe";

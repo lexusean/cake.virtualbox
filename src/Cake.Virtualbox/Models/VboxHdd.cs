@@ -5,13 +5,22 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Cake.Core.IO;
 
 namespace Cake.Virtualbox.Models
-{
+{ 
+    /// <summary>
+    /// Model for Vboxmanage Disk Info 
+    /// </summary>
     public class VboxHdd
     {
         #region Static Methods
 
+        /// <summary>
+        /// Creates Model based on string
+        /// </summary>
+        /// <param name="hddBlockStr">Disk info block</param>
+        /// <returns>Disk model</returns>
         public static VboxHdd GetHdd(string hddBlockStr)
         {
             var newHdd = new VboxHdd();
@@ -24,10 +33,24 @@ namespace Cake.Virtualbox.Models
 
         #region Public Properties
 
+        /// <summary>
+        /// Uuid String
+        /// </summary>
         public string UuidStr { get; set; }
+
+        /// <summary>
+        /// Parent Disk Uuid String
+        /// </summary>
         public string ParentUuidStr { get; set; }
+
+        /// <summary>
+        /// Location String
+        /// </summary>
         public string LocationStr { get; set; }
 
+        /// <summary>
+        /// UuidStr converted to Guid. Default is null
+        /// </summary>
         public Guid? Uuid
         {
             get
@@ -40,6 +63,9 @@ namespace Cake.Virtualbox.Models
             }
         }
 
+        /// <summary>
+        /// ParentUuidStr converted to Guid. Default is null
+        /// </summary>
         public Guid? ParentUuid
         {
             get
@@ -52,19 +78,28 @@ namespace Cake.Virtualbox.Models
             }
         }
 
-        public FileInfo Location
+        /// <summary>
+        /// LocationStr as FilePath 
+        /// </summary>
+        public FilePath Location
         {
             get
             {
-                return new FileInfo(this.LocationStr);
+                return new FilePath(this.LocationStr);
             }
         }
 
+        /// <summary>
+        /// Is a base drive
+        /// </summary>
         public bool IsBase
         {
             get { return this.ParentUuid == null; }
         }
 
+        /// <summary>
+        /// Has a parent drive linked clone
+        /// </summary>
         public bool HasParent
         {
             get { return this.ParentUuid != null; }

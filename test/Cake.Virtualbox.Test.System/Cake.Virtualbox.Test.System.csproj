@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Cake.Virtualbox\Cake.Virtualbox.csproj" />
+    <ProjectReference Include="..\..\src\Cake.Virtualbox\Cake.Virtualbox.csproj" />
   </ItemGroup>
 
   <ItemGroup>

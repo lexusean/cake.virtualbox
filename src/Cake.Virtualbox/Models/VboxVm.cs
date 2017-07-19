@@ -8,10 +8,20 @@ using System.Threading.Tasks;
 
 namespace Cake.Virtualbox.Models
 {
+    /// <summary>
+    /// Model for VM
+    /// </summary>
     public class VboxVm
     {
         #region Static Methods
 
+        /// <summary>
+        /// Convert to Model based on Vm String
+        /// </summary>
+        /// <param name="vmStr">vm string from vboxmanage list vms</param>
+        /// <param name="getInfoStrAction">function for getting VM Info model</param>
+        /// <param name="getHddAction">function for getting VM Disk model</param>
+        /// <returns></returns>
         public static VboxVm GetVm(
             string vmStr,
             Func<VboxVm, string> getInfoStrAction = null,
@@ -35,9 +45,19 @@ namespace Cake.Virtualbox.Models
 
         #region Public Properties
 
+        /// <summary>
+        /// VM Name
+        /// </summary>
         public string Name { get; set; }
+
+        /// <summary>
+        /// Uuid String For VM
+        /// </summary>
         public string UuidStr { get; set; }
 
+        /// <summary>
+        /// Uuid string converted to Guid. Default null
+        /// </summary>
         public Guid? Uuid
         {
             get
@@ -51,6 +71,10 @@ namespace Cake.Virtualbox.Models
         }
 
         private VboxVmInfo _vmInfo = null;
+
+        /// <summary>
+        /// VM Info model to contain more detail. Lazy loaded
+        /// </summary>
         public VboxVmInfo VmInfo
         {
             get

@@ -4,6 +4,14 @@
     <TargetFrameworks>net452</TargetFrameworks>
 		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net452|AnyCPU'">
+    <DocumentationFile>bin\Debug\net452\Cake.Virtualbox.xml</DocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net452|AnyCPU'">
+    <DocumentationFile>bin\Release\net452\Cake.Virtualbox.xml</DocumentationFile>
+  </PropertyGroup>
 	
 	<ItemGroup>
     <PackageReference Include="Cake.Core" Version="0.20.0" />

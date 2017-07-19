@@ -57,6 +57,7 @@ namespace Cake.Virtualbox.Test.System
         [TestCategory(Global.TestType)]
         public void GetVms_Works()
         {
+            var fs = CakeFixtures.CkFileSystem;
             var runner = this.GetRunner();
             var vms = runner.Vms.ToList();
 
@@ -69,7 +70,7 @@ namespace Cake.Virtualbox.Test.System
 
             var testDisk = testVm.VmInfo.Disks.Single();
             Assert.IsNotNull(testDisk.Location, "should have fileinfo for disk location");
-            Assert.IsTrue(testDisk.Location.Exists, "disk file should exist");
+            Assert.IsTrue(fs.Exist(testDisk.Location), "disk file should exist");
         }
 
         [TestMethod]

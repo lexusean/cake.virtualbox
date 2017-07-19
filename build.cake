@@ -2,11 +2,34 @@
 #addin "Cake.DocFx"
 #tool "docfx.console"
 
+#l "local:?path=build/CommandHelper.cake"
+
+var target = "default";
+CommandHelper.RunCommandHandler(
+	// Cake Context
+	Context,
+	// Target handling
+	targetArg => 
+	{
+		target = targetArg;
+	},
+	// Function to return available targets
+	() =>
+	{
+		return new string[] 
+		{
+			"Clean",
+			"Clean-All",
+			"Restore",
+			"Build",
+			"Build-Docs"
+		};
+	});
+
 //////////////////////////////////////////////////////////////////////////////
 // ARGUMENTS
 ///////////////////////////////////////////////////////////////////////////////
 
-var target = Argument<string>("target", "Default");
 var configuration = Argument<string>("configuration", "Release");
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -17,7 +40,11 @@ var solutionPath = File("./Cake.Virtualbox.sln");
 var solution = ParseSolution(solutionPath);
 var projects = solution.Projects;
 var projectPaths = projects.Select(p => p.Path.GetDirectory());
-var testAssemblies = projects.Where(p => p.Name.Contains(".Tests")).Select(p => p.Path.GetDirectory() + "/bin/" + configuration + "/" + p.Name + ".dll");
+var deployProjects = projects
+	.Where(p => !p.Name.Contains(".Test."));
+var testAssemblies = projects
+	.Where(p => p.Name.Contains(".Test."))
+	.Select(p => p.Path.GetDirectory() + "/bin/" + configuration + "/" + p.Name + ".dll");
 var artifacts = "./dist/";
 var testResultsPath = MakeAbsolute(Directory(artifacts + "./test-results"));
 GitVersion versionInfo = null;
@@ -32,7 +59,15 @@ Setup(ctx =>
 	// Executed BEFORE the first task.
 	Information("Running tasks...");
 	versionInfo = GitVersion();
-	Information("Building for version {0}", versionInfo.FullSemVer);
+	
+	Information("Branch: {0}", versionInfo.BranchName);
+	Information("Metadata {0}", versionInfo.FullBuildMetaData);
+	Information("Full SemVer {0}", versionInfo.FullSemVer);
+	Information("SemVer {0}", versionInfo.SemVer);
+	Information("Patch {0}", versionInfo.CommitsSinceVersionSourcePadded);
+	Information("Info Ver {0}", versionInfo.InformationalVersion);
+	Information("Assem Ver {0}", versionInfo.AssemblySemVer);
+	
 	
 	msBuildSettings = new DotNetCoreMSBuildSettings()
 		.WithProperty("Version", versionInfo.FullSemVer);
@@ -53,18 +88,23 @@ Teardown(ctx =>
 Task("Clean")
 	.Does(() =>
 	{
-		// Clean solution directories.
-		foreach(var path in projectPaths)
+		DotNetCoreClean(solutionPath, new DotNetCoreCleanSettings
 		{
-			Information("Cleaning {0}", path);
-			CleanDirectories(path + "/**/bin/" + configuration);
-			CleanDirectories(path + "/**/obj/" + configuration);
-		}
-		
-		Information("Cleaning common files...");
-		CleanDirectory(artifacts);
+			 Configuration = configuration
+		});
 	});
 
+Task("Clean-All")
+	.Does(() => 
+	{
+			Information("Cleaning bin/obj/artifact/docs folders");
+		
+			CleanDirectories("./**/bin");
+			CleanDirectories("./**/obj");
+			CleanDirectories("./docs/_site");
+			CleanDirectories(artifacts);
+	});
+	
 Task("Restore")
 	.Does(() =>
 	{
@@ -94,25 +134,34 @@ Task("Build")
 		});
 	});
 
-Task("Generate-Docs")
+Task("Build-Docs")
 	.Does(() => 
 	{
-		DocFxMetadata("./docs/docfx.json");
-		DocFxBuild("./docs/docfx.json");
+		var docsPath = Directory("./docs");
+		
+		DocFxMetadata(new DocFxMetadataSettings()
+		{
+				WorkingDirectory = docsPath
+		});
+		
+		DocFxBuild(new DocFxBuildSettings()
+		{
+				WorkingDirectory = docsPath
+		});
 	});
 
 Task("Post-Build")
 	.IsDependentOn("Build")
-	.IsDependentOn("Generate-Docs")
+	.IsDependentOn("Build-Docs")
 	.Does(() =>
 {
 	CreateDirectory(artifacts + "build");
 	
-	foreach (var project in projects) 
+	foreach (var project in deployProjects) 
 	{
 		CreateDirectory(artifacts + "build/" + project.Name);
 		CopyFiles(GetFiles(project.Path.GetDirectory() + "/" + project.Name + ".xml"), artifacts + "build/" + project.Name);
-		var files = GetFiles(project.Path.GetDirectory() +"/bin/" +configuration +"/" +project.Name +".*");
+		var files = GetFiles(project.Path.GetDirectory() +"/bin/" + configuration +"/" + project.Name +".*");
 		CopyFiles(files, artifacts + "build/" + project.Name);
 	}
 	//Package docs
@@ -168,4 +217,11 @@ Task("Default")
 // EXECUTION
 ///////////////////////////////////////////////////////////////////////////////
 
-RunTarget(target);
+Task("Dummy")
+	.Does(() =>
+	{
+		Information("Running Dummy");
+	});
+
+if(target != "default")
+	RunTarget(target);

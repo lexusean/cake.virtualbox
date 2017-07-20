@@ -108,6 +108,7 @@ Task("Clean-All")
 Task("Restore")
 	.Does(() =>
 	{
+		RunTarget()
 		// Restore all NuGet packages.
 		Information("Restoring solution...");
 		DotNetCoreRestore(solutionPath, new DotNetCoreRestoreSettings

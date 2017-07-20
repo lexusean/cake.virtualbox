@@ -3,70 +3,23 @@
 //
 // #l "local:?path=CommandHelper.cake"
 //
-// var target = "default";
-// CommandHelper.RunCommandHandler(
-// 	// Cake Context
-// 	Context,
-// 	// Target handling
-// 	targetArg => 
-// 	{
-// 		target = targetArg;
-// 	},
-// 	// Function to return available targets
-// 	() =>
-// 	{
-// 		return new string[] 
-// 		{
-// 			"dummy"
-// 		};
-// 	});
-// 
-// Task("Dummy")
-// 	.Does(() =>
-// 	{
-// 		Information("Running Dummy");
-// 	});
-// 
-// if(target != "default")
-// 	RunTarget(target);
+// var cmdHelper = CmdHelper;
+// cmdHelper.ScriptDescription = "Build Script Description";
+// cmdHelper.TaskHelper.AddBuildTask(() => Task
+//   .Does(() => ...),
+//   isTarget: true);
+//
+// cmdHelper.Run();
 
-public class CommandHelper
+#l "local:?path=TaskHelper.cake"
+
+public class CommandHelperModel
 {
-	public static List<string> AvailableTargets = new List<string>();
-	
-	public static void RunCommandHandler(
-		ICakeContext context, 
-		Action<string> targetSetAction,
-		Func<IEnumerable<string>> availableTargetsFunc)
+	public static CommandHelperModel CreateCommandHandler(
+    ICakeContext context,
+    TaskHelperModel taskHelper)
   {
-		if(availableTargetsFunc != null)
-		{
-			var availTargets = availableTargetsFunc();
-			if(availTargets != null)
-			{
-				AvailableTargets.AddRange(availTargets);
-			}
-		}
-		
-    var helper = new CommandHelper(context);
-		helper.RunArgument.ArgumentAction = arg =>
-		{
-			if(targetSetAction != null)
-			{
-				var target = arg.ArgumentValue();
-				if(!string.IsNullOrWhiteSpace(target))
-				{
-					targetSetAction(target);
-				}
-			}
-		};
-		
-		helper.Run();
-  }
-	
-  public static CommandHelper CreateCommandHandler(ICakeContext context)
-  {
-    return new CommandHelper(context);
+    return new CommandHelperModel(context, taskHelper);
   }
 
   public class AllowedArgument
@@ -103,6 +56,22 @@ public class CommandHelper
     public Action<AllowedArgument> ArgumentAction; 
     public List<AllowedArgument> AllowedArguments; 
 
+    public string ArgumentValue
+    {
+      get
+      {
+        return this.GetArgumentValue();
+      }
+    }
+
+    public bool CommandLineHasArgument
+    {
+      get
+      {
+        return this.GetCommandLineHasArgument();
+      }
+    }
+
 		private ICakeContext Context;
 		
     private AllowedArgument(
@@ -134,7 +103,7 @@ public class CommandHelper
       return arg;
     }
 
-    public bool CommandLineHasArgument()
+    private bool GetCommandLineHasArgument()
     {
 			var exists = this.Context.HasArgument(this.ActionName);
       exists |= this.Context.HasArgument(this.ShortName);
@@ -142,7 +111,7 @@ public class CommandHelper
       return exists;
     }
 
-    public string ArgumentValue()
+    private string GetArgumentValue()
     {
       var longArgValue = this.Context.Argument(this.ActionName, string.Empty);
       var shortArgValue = this.Context.Argument(this.ShortName, string.Empty);
@@ -169,17 +138,34 @@ public class CommandHelper
   public AllowedArgument RunArgument;
 	public AllowedArgument AvailableTargetsArgument;
 
+  public TaskHelperModel TaskHelper;
+  public string DefaultTarget = string.Empty;
+
 	private ICakeContext Context;
 	
-  private CommandHelper(ICakeContext context)
+  private CommandHelperModel(
+    ICakeContext context,
+    TaskHelperModel taskHelper)
   {
 		if(context == null)
-			throw new ArgumentNullException("context", "context cannot be null. Type: " + this.GetType().ToString());
+			throw new ArgumentNullException("context", "context cannot be null.");
 		
+    if(taskHelper == null)
+      throw new ArgumentNullException("taskHelper", "taskHelper cannot be null.");
+
 		this.Context = context;
+    this.TaskHelper = taskHelper;
 		
 		this.ScriptDescription = "This is a cake build script";
     this.AddDefaultArguments();
+  }
+
+  public string GetTarget()
+  {
+    if(this.RunArgument == null)
+      return string.Empty;
+
+    return this.RunArgument.ArgumentValue;
   }
 
   public AllowedArgument AddArgument(
@@ -196,13 +182,13 @@ public class CommandHelper
 
   public void Run()
   {
-    var isHelp = this.HelpArgument.CommandLineHasArgument();
+    var isHelp = this.HelpArgument.CommandLineHasArgument;
     this.Context.Debug("Help Set: {0}", isHelp);
 
     bool hadArguments = false;
     foreach(var arg in this.AllowedArguments.Where(t => t != this.HelpArgument))
     {
-      if(!arg.CommandLineHasArgument())
+      if(!arg.CommandLineHasArgument)
         continue;
 			
       hadArguments = true;
@@ -215,7 +201,7 @@ public class CommandHelper
       {
         if(arg.ArgumentAction == null)
         {
-          this.Context.Debug("No Action Defined for Argument: {0}", arg.ActionName);
+          this.Context.Information("No Action Defined for Argument: {0}", arg.ActionName);
         }
         else
         {
@@ -297,6 +283,20 @@ public class CommandHelper
 		desc += "  	   Run to get available targets: build.sh -at(--available-targets)\n";
 
     this.RunArgument = this.AddArgument("run", "r", desc);
+    this.RunArgument.ArgumentAction = arg =>
+    {
+      var target = arg.ArgumentValue;
+      target = string.IsNullOrWhiteSpace(target) ? this.DefaultTarget : target;
+
+      if(string.IsNullOrWhiteSpace(target))
+      {
+        var message = "No target or Default Target defined for --run | -r";
+        this.Context.Error(message);
+        throw new ArgumentNullException("target", message);
+      }
+
+      RunTarget(target);
+    };
   }
 	
 	private void AddAvailTargetsArgument()
@@ -324,3 +324,5 @@ public class CommandHelper
 		};
   }
 }
+
+var CommandHelper = CommandHelperModel.CreateCommandHandler(Context, TaskHelper);

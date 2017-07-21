@@ -17,9 +17,10 @@ public class CommandHelperModel
 {
 	public static CommandHelperModel CreateCommandHandler(
     ICakeContext context,
-    TaskHelperModel taskHelper)
+    TaskHelperModel taskHelper,
+    Action<string> runTargetAction)
   {
-    return new CommandHelperModel(context, taskHelper);
+    return new CommandHelperModel(context, taskHelper, runTargetAction);
   }
 
   public class AllowedArgument
@@ -142,19 +143,25 @@ public class CommandHelperModel
   public string DefaultTarget = string.Empty;
 
 	private ICakeContext Context;
+  private Action<string> _RunTargetAction;
 	
   private CommandHelperModel(
     ICakeContext context,
-    TaskHelperModel taskHelper)
+    TaskHelperModel taskHelper,
+    Action<string> runTargetAction)
   {
 		if(context == null)
 			throw new ArgumentNullException("context", "context cannot be null.");
 		
     if(taskHelper == null)
       throw new ArgumentNullException("taskHelper", "taskHelper cannot be null.");
+    
+    if(runTargetAction == null)
+      throw new ArgumentNullException("runTargetAction", "runTargetAction cannot be null.");
 
 		this.Context = context;
     this.TaskHelper = taskHelper;
+    this._RunTargetAction = runTargetAction;
 		
 		this.ScriptDescription = "This is a cake build script";
     this.AddDefaultArguments();
@@ -295,7 +302,7 @@ public class CommandHelperModel
         throw new ArgumentNullException("target", message);
       }
 
-      RunTarget(target);
+      this._RunTargetAction(target);
     };
   }
 	
@@ -312,12 +319,14 @@ public class CommandHelperModel
     this.AvailableTargetsArgument = this.AddArgument("available-targets", "at", desc);
 		this.AvailableTargetsArgument.ArgumentAction = arg =>
 		{
+      var targets = this.TaskHelper.Targets.ToList();
+
 			this.Context.Information("");
-			this.Context.Information("{0} Targets Avaiable:\n", CommandHelper.AvailableTargets.Count);
+			this.Context.Information("{0} Targets Avaiable:\n", targets.Count);
 			
-			foreach(var targ in CommandHelper.AvailableTargets)
+			foreach(var targ in targets)
 			{
-				this.Context.Information("  - {0}", targ);
+				this.Context.Information("  - {0}", targ.Name);
 			}
 			
 			this.Context.Information("");
@@ -325,4 +334,8 @@ public class CommandHelperModel
   }
 }
 
-var CommandHelper = CommandHelperModel.CreateCommandHandler(Context, TaskHelper);
+Action<string> targetAction = target =>
+{
+  RunTarget(target);
+};
+var CommandHelper = CommandHelperModel.CreateCommandHandler(Context, TaskHelper, targetAction);

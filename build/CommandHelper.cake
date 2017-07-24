@@ -17,10 +17,9 @@ public class CommandHelperModel
 {
 	public static CommandHelperModel CreateCommandHandler(
     ICakeContext context,
-    TaskHelperModel taskHelper,
-    Action<string> runTargetAction)
+    TaskHelperModel taskHelper)
   {
-    return new CommandHelperModel(context, taskHelper, runTargetAction);
+    return new CommandHelperModel(context, taskHelper);
   }
 
   public class AllowedArgument
@@ -142,26 +141,22 @@ public class CommandHelperModel
   public TaskHelperModel TaskHelper;
   public string DefaultTarget = string.Empty;
 
+  public Func<string, CakeReport> RunTargetFunc { get; set; }
+
 	private ICakeContext Context;
-  private Action<string> _RunTargetAction;
 	
   private CommandHelperModel(
     ICakeContext context,
-    TaskHelperModel taskHelper,
-    Action<string> runTargetAction)
+    TaskHelperModel taskHelper)
   {
 		if(context == null)
 			throw new ArgumentNullException("context", "context cannot be null.");
 		
     if(taskHelper == null)
       throw new ArgumentNullException("taskHelper", "taskHelper cannot be null.");
-    
-    if(runTargetAction == null)
-      throw new ArgumentNullException("runTargetAction", "runTargetAction cannot be null.");
 
 		this.Context = context;
     this.TaskHelper = taskHelper;
-    this._RunTargetAction = runTargetAction;
 		
 		this.ScriptDescription = "This is a cake build script";
     this.AddDefaultArguments();
@@ -264,17 +259,17 @@ public class CommandHelperModel
 
   private void AddHelpArgument()
   {
-    var desc = "Action: --use | -h\n";
+    var desc = "Action: --support | -h\n";
 		desc += "Description: Shows help for arguments\n";
     desc += "Typical Usage:\n";
     desc += "  Windows:\n";
-    desc += "    build.ps1 -h(--use)\n";
+    desc += "    build.ps1 -h(--support)\n";
     desc += "    build.ps1 <action> -h(--use)\n";
     desc += "  Linux:\n";
-    desc += "    build.sh -h(--use)\n";
-    desc += "    build.sh <action> -h(--use)\n";
+    desc += "    build.sh -h(--support)\n";
+    desc += "    build.sh <action> -h(--support)\n";
 
-    this.HelpArgument = this.AddArgument("use", "h", desc);
+    this.HelpArgument = this.AddArgument("support", "h", desc);
   }
 
   private void AddRunTargetArgument()
@@ -302,7 +297,10 @@ public class CommandHelperModel
         throw new ArgumentNullException("target", message);
       }
 
-      this._RunTargetAction(target);
+      if(this.RunTargetFunc == null)
+        throw new ArgumentNullException("RunTargetAction", "RunTarget delegate cannot be null");
+
+      this.RunTargetFunc(target);
     };
   }
 	
@@ -319,23 +317,32 @@ public class CommandHelperModel
     this.AvailableTargetsArgument = this.AddArgument("available-targets", "at", desc);
 		this.AvailableTargetsArgument.ArgumentAction = arg =>
 		{
-      var targets = this.TaskHelper.Targets.ToList();
+      var categories = this.TaskHelper.Categories.OrderBy(t => t).ToArray();
+      this.Context.Information("");
+			this.Context.Information("{0} Target Categories Avaiable:", categories.Length);
 
-			this.Context.Information("");
-			this.Context.Information("{0} Targets Avaiable:\n", targets.Count);
-			
-			foreach(var targ in targets)
-			{
-				this.Context.Information("  - {0}", targ.Name);
-			}
+      foreach(var category in categories)
+      {
+        var tasksForCategory = this.TaskHelper.TaskData
+          .Where(t => t.IsTarget)
+          .Where(t => t.Category == category)
+          .OrderBy(t => t.Task.Name)
+          .ToArray();
+
+        this.Context.Information("");
+        this.Context.Information("  Category: {0}", category);
+        this.Context.Information("  {0} Targets Avaiable:", tasksForCategory.Length);
+
+        foreach(var task in tasksForCategory)
+        {
+          this.Context.Information("    - {0}", task.Task.Name);
+        }
+      }
 			
 			this.Context.Information("");
 		};
   }
 }
 
-Action<string> targetAction = target =>
-{
-  RunTarget(target);
-};
-var CommandHelper = CommandHelperModel.CreateCommandHandler(Context, TaskHelper, targetAction);
+var CommandHelper = CommandHelperModel.CreateCommandHandler(Context, TaskHelper);
+CommandHelper.RunTargetFunc = RunTarget;

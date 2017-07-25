@@ -8,6 +8,7 @@
 public class TaskHelperModel
 {
   private const string DefaultTaskCategory = "Generic";
+  public const string DefaultTaskType = "Unknown";
 
   public class ActionTaskDataModel
   {
@@ -29,6 +30,24 @@ public class TaskHelperModel
       set
       {
         this._Category = value;
+      }
+    }
+
+    private string _TaskType = DefaultTaskType;
+    public string TaskType 
+    { 
+      get
+      {
+        if(string.IsNullOrWhiteSpace(this._TaskType))
+        {
+          this._TaskType = DefaultTaskType;
+        }
+
+        return this._TaskType;
+      } 
+      set
+      {
+        this._TaskType = value;
       }
     }
 
@@ -164,7 +183,11 @@ public class TaskHelperModel
         .Select(kvp => new CakeTaskBuilder<ActionTask>(kvp.Key));
   }
 
-  public CakeTaskBuilder<ActionTask> GetTask(string taskName, bool isTarget = false, string category = "")
+  public CakeTaskBuilder<ActionTask> GetTask(
+    string taskName, 
+    bool isTarget = false, 
+    string category = "",
+    string taskType = "")
   {
     if(this.ScriptHostTaskFunc == null)
       return null;
@@ -178,12 +201,15 @@ public class TaskHelperModel
       return new CakeTaskBuilder<ActionTask>(task);
     
     if(isTarget)
-      return this.AddBuildTask(taskName, category);
+      return this.AddBuildTask(taskName, category, taskType);
     
-    return this.AddTask(taskName, category);
+    return this.AddTask(taskName, category, taskType);
   }
 
-  public CakeTaskBuilder<ActionTask> AddTask(string taskName, string category = "")
+  public CakeTaskBuilder<ActionTask> AddTask(
+    string taskName, 
+    string category = "", 
+    string taskType = "")
   {
     if(this.ScriptHostTaskFunc == null)
       return null;
@@ -195,33 +221,45 @@ public class TaskHelperModel
 
     var model = this.TaskCache.AddTask(task.Task);
     model.Category = category;
+    model.TaskType = taskType;
 
     return task;
   }
 
-  public CakeTaskBuilder<ActionTask> AddTask(CakeTaskBuilder<ActionTask> task, string category = "")
+  public CakeTaskBuilder<ActionTask> AddTask(
+    CakeTaskBuilder<ActionTask> task, 
+    string category = "",
+    string taskType = "")
   {
     if(task == null)
       return null;
     
     var model = this.TaskCache.AddTask(task.Task);
     model.Category = category;
+    model.TaskType = taskType;
 
     return task;
   }
 
-  public CakeTaskBuilder<ActionTask> AddTask(ActionTask task, string category = "")
+  public CakeTaskBuilder<ActionTask> AddTask(
+    ActionTask task, 
+    string category = "",
+    string taskType = "")
   {
     if(task == null)
       return null;
     
     var model = this.TaskCache.AddTask(task);
     model.Category = category;
+    model.TaskType = taskType;
 
     return new CakeTaskBuilder<ActionTask>(task);
   }
 
-  public CakeTaskBuilder<ActionTask> AddBuildTask(string taskName, string category = "")
+  public CakeTaskBuilder<ActionTask> AddBuildTask(
+    string taskName, 
+    string category = "",
+    string taskType = "")
   {
     if(this.ScriptHostTaskFunc == null)
       return null;
@@ -233,28 +271,37 @@ public class TaskHelperModel
 
     var model = this.TaskCache.AddBuildTask(task.Task);
     model.Category = category;
+    model.TaskType = taskType;
 
     return task;
   }
 
-  public CakeTaskBuilder<ActionTask> AddBuildTask(CakeTaskBuilder<ActionTask> task, string category = "")
+  public CakeTaskBuilder<ActionTask> AddBuildTask(
+    CakeTaskBuilder<ActionTask> task, 
+    string category = "",
+    string taskType = "")
   {
     if(task == null)
       return null;
     
     var model = this.TaskCache.AddBuildTask(task.Task, true);
     model.Category = category;
+    model.TaskType = taskType;
 
     return task;
   }
 
-  public CakeTaskBuilder<ActionTask> AddBuildTask(ActionTask task, string category = "")
+  public CakeTaskBuilder<ActionTask> AddBuildTask(
+    ActionTask task, 
+    string category = "",
+    string taskType = "")
   {
     if(task == null)
       return null;
     
     var model = this.TaskCache.AddBuildTask(task, true);
     model.Category = category;
+    model.TaskType = taskType;
 
     return new CakeTaskBuilder<ActionTask>(task);
   }

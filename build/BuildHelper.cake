@@ -42,9 +42,12 @@ public class BuildHelperModel
     if(taskHelper == null)
       return null;
 
-    var taskName = GetTaskName(taskType, taskTarget);
+    if(string.IsNullOrWhiteSpace(name))
+      name = "All";
 
-    return taskHelper.GetTask(taskName, true, TargetCategory);
+    var taskName = GetTaskName(taskType, name);
+
+    return taskHelper.GetTask(taskName, true, TargetCategory, taskType);
   }
 
   private ICakeContext Context;
@@ -110,10 +113,80 @@ public class BuildHelperModel
   public CakeTaskBuilder<ActionTask> PackageBuildTask(string target = "All")
   {
     var postBuildTask = GetTask(this.TaskHelper, PostBuildTaskName, target);
-    var packageTask = GetTask(this.TaskHelper, packageTask, target);
+    var packageTask = GetTask(this.TaskHelper, PackageBuildTaskName, target);
     this.TaskHelper.AddTaskDependency(packageTask, postBuildTask.Task.Name);
 
     return packageTask;
+  }
+
+  public CakeTaskBuilder<ActionTask> AddToClean(string taskName)
+  {
+    if(string.IsNullOrWhiteSpace(taskName))
+      throw new ArgumentNullException("taskName", "Need a specific Task name at this point.");
+
+    var allTask = this.CleanTask();
+    var newTask = this.CleanTask(taskName);
+
+    allTask
+      .IsDependentOn(newTask);
+
+    return newTask;
+  }
+
+  public CakeTaskBuilder<ActionTask> AddToPreBuild(string taskName)
+  {
+    if(string.IsNullOrWhiteSpace(taskName))
+      throw new ArgumentNullException("taskName", "Need a specific Task name at this point.");
+
+    var allTask = this.PreBuildTask();
+    var newTask = this.PreBuildTask(taskName);
+
+    allTask
+      .IsDependentOn(newTask);
+
+    return newTask;
+  }
+
+  public CakeTaskBuilder<ActionTask> AddToBuild(string taskName)
+  {
+    if(string.IsNullOrWhiteSpace(taskName))
+      throw new ArgumentNullException("taskName", "Need a specific Task name at this point.");
+
+    var allTask = this.BuildTask();
+    var newTask = this.BuildTask(taskName);
+
+    allTask
+      .IsDependentOn(newTask);
+
+    return newTask;
+  }
+
+  public CakeTaskBuilder<ActionTask> AddToPostBuild(string taskName)
+  {
+    if(string.IsNullOrWhiteSpace(taskName))
+      throw new ArgumentNullException("taskName", "Need a specific Task name at this point.");
+
+    var allTask = this.PostBuildTask();
+    var newTask = this.PostBuildTask(taskName);
+
+    allTask
+      .IsDependentOn(newTask);
+
+    return newTask;
+  }
+
+  public CakeTaskBuilder<ActionTask> AddToPackage(string taskName)
+  {
+    if(string.IsNullOrWhiteSpace(taskName))
+      throw new ArgumentNullException("taskName", "Need a specific Task name at this point.");;
+
+    var allTask = this.PackageBuildTask();
+    var newTask = this.PackageBuildTask(taskName);
+
+    allTask
+      .IsDependentOn(newTask);
+
+    return newTask;
   }
 
   private void SetDefaults()

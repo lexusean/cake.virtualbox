@@ -335,12 +335,37 @@ public class CommandHelperModel
 
         foreach(var task in tasksForCategory)
         {
-          this.Context.Information("    - {0}", task.Task.Name);
+          this.AddAvailTargetsArgumentForTask(tasksForCategory, task, 4, 0);
         }
       }
 			
 			this.Context.Information("");
 		};
+  }
+
+  private void AddAvailTargetsArgumentForTask(
+    IEnumerable<TaskHelperModel.ActionTaskDataModel> allTargets, 
+    TaskHelperModel.ActionTaskDataModel task, 
+    int indent = 0, 
+    int currentDepth = 0)
+  {
+    if(currentDepth >= 10)
+      return;
+
+    var taskString = string.Format("{0}- {1}", new String(' ', indent), task.Task.Name);
+    this.Context.Information(taskString);
+
+    var dependencyTargets = task.Task.Dependencies
+      .Where(x => allTargets.Any(y => y.Task.Name == x && y.TaskType == task.TaskType))
+      .Select(x => this.TaskHelper.TaskData.FirstOrDefault(y => y.Task.Name == x))
+      .Where(x => x != null)
+      .OrderBy(t => t.Task.Name)
+      .ToArray();
+
+    foreach(var dTarget in dependencyTargets)
+    {
+      this.AddAvailTargetsArgumentForTask(allTargets, dTarget, indent + 2, currentDepth + 1);
+    }
   }
 }
 

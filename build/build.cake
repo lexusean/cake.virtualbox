@@ -1,9 +1,21 @@
 #l "local:?path=CommandHelper.cake"
 #l "local:?path=BuildHelper.cake"
+#l "local:?path=DotNetCoreHelper.cake"
 //#l "local:?path=DotNetCoreHelper.cake"
 
 var cmdHelper = CommandHelper;
 cmdHelper.ScriptDescription = "Build Script Description Test";
+
+var dotCoreHelper = DotNetCoreHelper;
+var projConfig = dotCoreHelper.AddProjectConfig(
+	"Cake.Virtualbox",
+	"../Cake.Virtualbox.sln",
+	"Debug",
+	string.Empty,
+	"net452");
+
+projConfig.PostBuildOutputDirectory = Directory("../artifacts");
+
 
 // --
 // Setup Build Tasks

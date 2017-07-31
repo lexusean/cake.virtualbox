@@ -6,9 +6,11 @@
 // var buildHelper = BuildHelper;
 
 #l "local:?path=TaskHelper.cake"
+#l "local:?path=CleanHelper.cake"
 
 public class BuildHelperModel
 {
+  private const string BuildTempFolderDefault = "BuildTemp";
   private const string TargetCategory = "Build";
   private const string TargetConstraintFormat = "{0}-{1}";
   private const string SubTargetConstraintFormat = "{0}-{1}";
@@ -21,9 +23,10 @@ public class BuildHelperModel
 
   public static BuildHelperModel CreateBuildHelper(
     ICakeContext context,
-    TaskHelperModel taskHelper)
+    TaskHelperModel taskHelper,
+    CleanHelperModel cleanHelper)
   {
-    return new BuildHelperModel(context, taskHelper);
+    return new BuildHelperModel(context, taskHelper, cleanHelper);
   }
 
   private static string GetTaskName(string taskType, string name = "All")
@@ -51,12 +54,42 @@ public class BuildHelperModel
     return taskHelper.GetTask(taskName, isTarget, TargetCategory, taskType);
   }
 
+  private DirectoryPath _BuildTempFolder = null;
+  public DirectoryPath BuildTempFolder 
+  { 
+    get
+    {
+      if(this._BuildTempFolder == null)
+      {
+        this._BuildTempFolder = this.Context.Directory(BuildTempFolderDefault);
+        this._BuildTempFolder = this.Context.MakeAbsolute(this._BuildTempFolder);
+      }
+
+      return this._BuildTempFolder;
+    } 
+    set
+    {
+      var val = value;
+      if(val == null)
+      {
+        this._BuildTempFolder = null;
+      }
+      else
+      {
+        this._BuildTempFolder = value;
+        this._BuildTempFolder = this.Context.MakeAbsolute(this._BuildTempFolder);
+      }
+    }
+  }
+
   private ICakeContext Context;
   private TaskHelperModel TaskHelper { get; set; }
+  private CleanHelperModel CleanHelper { get; set; }
 
   private BuildHelperModel(
     ICakeContext context,
-    TaskHelperModel taskHelper)
+    TaskHelperModel taskHelper,
+    CleanHelperModel cleanHelper)
   {
     if(context == null)
 			throw new ArgumentNullException("context", "context cannot be null.");
@@ -64,15 +97,19 @@ public class BuildHelperModel
     if(taskHelper == null)
 			throw new ArgumentNullException("taskHelper", "taskHelper cannot be null.");
 
+    if(cleanHelper == null)
+			throw new ArgumentNullException("cleanHelper", "cleanHelper cannot be null.");
+
     this.Context = context;
     this.TaskHelper = taskHelper;
+    this.CleanHelper = cleanHelper;
 
     this.SetDefaults();
   }
 
   public CakeTaskBuilder<ActionTask> CleanTask(string target = "All", bool isSubTask = false)
   {
-    return GetTask(this.TaskHelper, CleanTaskName, target, !isSubTask);
+    return this.CleanHelper.CleanTask(TargetCategory, target, isSubTask);
   }
 
   public CakeTaskBuilder<ActionTask> PreBuildTask(string target = "All", bool isSubTask = false)
@@ -81,7 +118,7 @@ public class BuildHelperModel
 
     if(!isSubTask)
     {
-      var clnTask = GetTask(this.TaskHelper, CleanTaskName, target);
+      var clnTask = this.CleanTask(target);
       this.TaskHelper.AddTaskDependency(preBuildTask, clnTask.Task.Name);
     }
 
@@ -123,21 +160,7 @@ public class BuildHelperModel
 
   public CakeTaskBuilder<ActionTask> AddToClean(string taskName, bool isSubTask = false, string parentTaskName = "")
   {
-    if(string.IsNullOrWhiteSpace(taskName))
-      throw new ArgumentNullException("taskName", "Need a specific Task name at this point.");
-
-    if(isSubTask && string.IsNullOrWhiteSpace(parentTaskName))
-      throw new ArgumentNullException("parentTaskName", "Need a specific Parent Task name if adding a sub task at this point.");
-
-    var newTaskName = isSubTask ? string.Format(SubTargetConstraintFormat, parentTaskName, taskName) : taskName;
-
-    var parentTask = isSubTask ? this.CleanTask(parentTaskName) : this.CleanTask();
-    var newTask = this.CleanTask(newTaskName, isSubTask);
-
-    parentTask
-      .IsDependentOn(newTask);
-
-    return newTask;
+    return this.CleanHelper.AddToClean(taskName, TargetCategory, isSubTask, parentTaskName);
   }
 
   public CakeTaskBuilder<ActionTask> AddToPreBuild(string taskName, bool isSubTask = false, string parentTaskName = "")
@@ -235,4 +258,4 @@ public class BuildHelperModel
   }
 }
 
-var BuildHelper = BuildHelperModel.CreateBuildHelper(Context, TaskHelper);
+var BuildHelper = BuildHelperModel.CreateBuildHelper(Context, TaskHelper, CleanHelper);

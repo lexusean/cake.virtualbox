@@ -6,14 +6,14 @@
 var cmdHelper = CommandHelper;
 cmdHelper.ScriptDescription = "Build Script Description Test";
 
-var artifactDirectory = Directory("../artifacts");
+TestHelper.TestTempFolder = Directory("../TestTemp");
+BuildHelper.BuildTempFolder = Directory("../BuildTemp");
 
 var dotCoreHelper = DotNetCoreHelper;
 var testConfig = dotCoreHelper.GetTestConfig("Unit", "System");
 var projConfig = dotCoreHelper.GetProjectConfig(File("../Cake.Virtualbox.sln"));
 projConfig.Configuration = "Debug";
 projConfig.Framework = "net452";
-projConfig.ArtifactDirectory = artifactDirectory;
 
 dotCoreHelper.AddProjectConfig(projConfig);
 dotCoreHelper.AddTestConfig(projConfig, testConfig);

@@ -151,6 +151,8 @@ public class TaskHelperModel
     }
   }
 
+  public Func<string, CakeReport> RunTargetFunc { get; set; }
+
   public Func<string, CakeTaskBuilder<ActionTask>> ScriptHostTaskFunc { get; set; }
 
   private ActionTaskDataCache TaskCache { get; set; }
@@ -337,7 +339,16 @@ public class TaskHelperModel
 
     originatingTask.IsDependentOn(taskName);
   }
+
+  public void RunTarget(string targetName)
+  {
+    if(this.RunTargetFunc == null)
+        throw new ArgumentNullException("RunTargetFunc", "RunTarget delegate cannot be null");
+
+      this.RunTargetFunc(targetName);
+  }
 }
 
 var TaskHelper = TaskHelperModel.CreateTaskHelper(Context);
 TaskHelper.ScriptHostTaskFunc = Task;
+TaskHelper.RunTargetFunc = RunTarget;

@@ -141,8 +141,6 @@ public class CommandHelperModel
   public TaskHelperModel TaskHelper;
   public string DefaultTarget = string.Empty;
 
-  public Func<string, CakeReport> RunTargetFunc { get; set; }
-
 	private ICakeContext Context;
 	
   private CommandHelperModel(
@@ -297,10 +295,7 @@ public class CommandHelperModel
         throw new ArgumentNullException("target", message);
       }
 
-      if(this.RunTargetFunc == null)
-        throw new ArgumentNullException("RunTargetAction", "RunTarget delegate cannot be null");
-
-      this.RunTargetFunc(target);
+      this.TaskHelper.RunTarget(target);
     };
   }
 	
@@ -370,4 +365,3 @@ public class CommandHelperModel
 }
 
 var CommandHelper = CommandHelperModel.CreateCommandHandler(Context, TaskHelper);
-CommandHelper.RunTargetFunc = RunTarget;

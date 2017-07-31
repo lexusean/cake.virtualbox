@@ -66,6 +66,24 @@ public class DotNetCoreHelperModel
     public string Framework { get; set; }
     public string Platform { get; set; }
 
+    public VSTestPlatform VsPlatform
+    {
+      get
+      {
+        switch((this.Platform ?? string.Empty).ToLower().Trim())
+        {
+          case "arm":
+            return VSTestPlatform.ARM;
+          case "x86":
+            return VSTestPlatform.x86;
+          case "x64":
+            return VSTestPlatform.x64;
+          default:
+            return VSTestPlatform.Default;
+        }
+      }
+    }
+
     private List<SolutionProject> _Projects = null;
     public IEnumerable<SolutionProject> Projects 
     { 
@@ -87,7 +105,15 @@ public class DotNetCoreHelperModel
       {
         if(this._TestProjects == null)
         {
-          this._TestProjects = this.GetProjects();
+          this._TestProjects = this.Projects
+            .Where(t => 
+            {
+              if(!this.ArtifactExcludeFilters.Any())
+                return true;
+
+              return this.ArtifactExcludeFilters.Any(x => Regex.IsMatch(t.Name, x));
+            })
+            .ToList();
         }
 
         return this._TestProjects ?? Enumerable.Empty<SolutionProject>();
@@ -108,15 +134,14 @@ public class DotNetCoreHelperModel
       }
     }
     
-    private DirectoryPath _ArtifactDirectory = null;
     public DirectoryPath ArtifactDirectory 
     { 
       get
       {
-        if(this._ArtifactDirectory == null)
+        if(this.BuildHelper.BuildTempFolder == null)
           return null;
 
-        var path = this._ArtifactDirectory.Combine(this.ProjectAlias);
+        var path = this.BuildHelper.BuildTempFolder.Combine(this.ProjectAlias);
 
         if(!string.IsNullOrWhiteSpace(this.Configuration))
           path = path.Combine(new DirectoryPath(this.Configuration));
@@ -129,7 +154,6 @@ public class DotNetCoreHelperModel
 
         return path;
       }
-      set { this._ArtifactDirectory = value; } 
     }
     
     public List<string> ArtifactExcludeFilters { get; set; }
@@ -171,18 +195,56 @@ public class DotNetCoreHelperModel
       }
     }
 
-    private ICakeContext Context;
+    public IEnumerable<FilePath> TestAssemblies
+    {
+      get
+      {
+        //Filter out project
+        var filePatterns = this.TestProjects
+          .Select(t => new { Project = t, OutputDirectory = this.GetOutputDirectoryForProject(t) })
+          .Select(t => 
+          {
+            return new 
+            { 
+              Project = t.Project, 
+              SearchPattern = string.Format("{0}/{1}.dll", t.OutputDirectory, t.Project.Name),
+              IsMatch = new Func<FilePath, bool>(path => path.GetFilenameWithoutExtension().FullPath == t.Project.Name)
+            };
+          })
+          .ToArray();
 
-    public ProjectConfiguration(ICakeContext context, FilePath projectFile)
+        return filePatterns
+          .SelectMany(t => 
+          {
+            var matchingFiles = this.Context.GetFiles(t.SearchPattern)
+              .Where(x => t.IsMatch(x));
+
+            return matchingFiles;
+          })
+          .Where(t => this.Context.FileExists(t));
+      }
+    }
+
+    private ICakeContext Context;
+    private BuildHelperModel BuildHelper;
+
+    public ProjectConfiguration(
+      ICakeContext context,
+      BuildHelperModel buildHelper, 
+      FilePath projectFile)
     { 
       if(context == null)
         throw new ArgumentNullException("context");
+
+      if(buildHelper == null)
+        throw new ArgumentNullException("buildHelper");
 
       if(projectFile == null)
         throw new ArgumentNullException("projectFile");
 
       this.ProjectFile = projectFile;
       this.Context = context;
+      this.BuildHelper = buildHelper;
 
       this.ArtifactExcludeFilters = new List<string>();
     }
@@ -273,7 +335,6 @@ public class DotNetCoreHelperModel
       this._Projects = null;
       this._TestProjects = null;
       this._OutputDirectories = null;
-      this._ArtifactDirectory = null;
     }
   }
 
@@ -283,6 +344,7 @@ public class DotNetCoreHelperModel
     public List<string> TestCategories { get; set; }
     public bool IsXUnit { get; set; }
     public bool NoBuild { get; set; }
+    public string Logger { get; set; }
 
     public TestConfiguration()
     {
@@ -291,16 +353,100 @@ public class DotNetCoreHelperModel
       this.NoBuild = true;
     } 
 
-    public IEnumerable<SolutionProject> GetTestProjects(ProjectConfiguration projConfig)
+    public IEnumerable<FilePath> GetTestAssemblies(ProjectConfiguration projConfig)
     {
-      return projConfig.Projects
-        .Where(t => 
-        {
-          if(!this.ProjectNameFilters.Any())
-            return false;
-            
-          return this.ProjectNameFilters.Any(x => Regex.IsMatch(t.Name, x));
-        });
+      return projConfig.TestAssemblies;
+    }
+
+    public string GetTestProjectResultFileName( string testCategory, ProjectConfiguration projConfig)
+    {
+      if(projConfig == null)
+        throw new ArgumentNullException("projConfig");
+
+      if(string.IsNullOrWhiteSpace(testCategory) == null)
+        throw new ArgumentNullException("testCategory");
+
+      var resultFileBuilder = new StringBuilder();
+      resultFileBuilder.AppendFormat("{0}.{1}", testCategory, projConfig.Configuration);
+      if(!string.IsNullOrWhiteSpace(projConfig.Framework))
+      {
+        resultFileBuilder.AppendFormat(".{0}", projConfig.Framework);
+      }
+
+      resultFileBuilder.Append(".trx");
+
+      return resultFileBuilder.ToString();
+    }
+
+    public void SetupClean(ICakeContext context, ProjectConfiguration projConfig, TestHelperModel testHelper)
+    {
+      if(context == null)
+        throw new ArgumentNullException("context");
+
+      if(projConfig == null)
+        throw new ArgumentNullException("projConfig");
+
+      if(testHelper == null)
+        throw new ArgumentNullException("testHelper");
+
+      foreach(var testCategory in this.TestCategories)
+      {
+        testHelper.AddToClean(projConfig.ProjectAlias, testCategory);
+
+        testHelper.AddToClean("CleanTestCategory", testCategory, true, projConfig.ProjectAlias)
+          .Does(() =>
+          {
+            var targetDir = context.MakeAbsolute(testHelper.TestTempFolder);
+            var testCategoryResultsDir = targetDir.Combine(context.Directory(testCategory));
+            testCategoryResultsDir = testCategoryResultsDir.Combine(context.Directory(projConfig.ProjectAlias));
+
+            if(context.DirectoryExists(testCategoryResultsDir))
+                context.DeleteDirectory(testCategoryResultsDir, true);
+          });
+      }
+    }
+
+    public void SetupTest(ICakeContext context, ProjectConfiguration projConfig, TestHelperModel testHelper)
+    {
+      if(context == null)
+        throw new ArgumentNullException("context");
+
+      if(projConfig == null)
+        throw new ArgumentNullException("projConfig");
+
+      if(testHelper == null)
+        throw new ArgumentNullException("testHelper");
+
+      foreach(var testCategory in this.TestCategories)
+      {
+        testHelper.AddToTest(projConfig.ProjectAlias, testCategory);
+
+        testHelper.AddToTest("RunTestCategory", testCategory, true, projConfig.ProjectAlias)
+          .Does(() =>
+          {
+            var targetDir = context.MakeAbsolute(testHelper.TestTempFolder);
+            var testCategoryResultsDir = targetDir.Combine(context.Directory(testCategory));
+            testCategoryResultsDir = testCategoryResultsDir.Combine(context.Directory(projConfig.ProjectAlias));
+
+            var settings = new DotNetCoreTestSettings();
+            settings.Filter = string.Format("{0}={1}", this.IsXUnit ? "Category" : "TestCategory", testCategory);
+            settings.Configuration = projConfig.Configuration;
+            settings.Framework = projConfig.Framework;
+            settings.NoBuild = this.NoBuild;
+
+            foreach(var testProj in projConfig.TestProjects)
+            {
+              var resultsFile = this.GetTestProjectResultFileName(testCategory, projConfig);
+              var testResultsTargetDir = testCategoryResultsDir.Combine(context.Directory(testProj.Name));
+              var testResultsTarget = testResultsTargetDir.CombineWithFilePath(resultsFile);
+
+              settings.Logger = !string.IsNullOrWhiteSpace(this.Logger) ? this.Logger :
+                string.Format("trx;LogFileName={0}", testResultsTarget.FullPath);
+
+              context.DotNetCoreTest(context.MakeAbsolute(testProj.Path).FullPath, settings);  
+            }
+          });
+      }
     }
   }
 
@@ -357,7 +503,7 @@ public class DotNetCoreHelperModel
 
   public ProjectConfiguration GetProjectConfig(FilePath projectFile)
   {
-     var projConfig = new ProjectConfiguration(this.Context, projectFile);
+     var projConfig = new ProjectConfiguration(this.Context, this.BuildHelper, projectFile);
 
      return projConfig;
   }
@@ -423,13 +569,13 @@ public class DotNetCoreHelperModel
         }
       });
 
-    this.BuildHelper.AddToClean("Artifacts", true, config.ProjectAlias)
+    this.BuildHelper.AddToClean("BuildTemp", true, config.ProjectAlias)
       .Does(() =>
       {
         var postBuildDir = config.ArtifactDirectory;
         if(postBuildDir != null && this.Context.DirectoryExists(postBuildDir))
         {
-          this.Context.Debug("Deleting PostBuild Artifact Directory: {0}", postBuildDir.FullPath);
+          this.Context.Debug("Deleting PostBuild Temp Directory: {0}", postBuildDir.FullPath);
           this.Context.DeleteDirectory(postBuildDir, true);
         }
       });
@@ -472,7 +618,7 @@ public class DotNetCoreHelperModel
   {
     this.BuildHelper.AddToPostBuild(config.ProjectAlias);
 
-    this.BuildHelper.AddToPostBuild("MoveToArtifacts", true, config.ProjectAlias)
+    this.BuildHelper.AddToPostBuild("MoveToBuildTemp", true, config.ProjectAlias)
       .Does(() =>
       {
         if(config.ArtifactDirectory == null)
@@ -494,35 +640,8 @@ public class DotNetCoreHelperModel
 
   private void RegisterTestTasks(ProjectConfiguration config, TestConfiguration testConfig)
   {
-    foreach(var testCategory in testConfig.TestCategories)
-    {
-      this.TestHelper.AddToTest(config.ProjectAlias, testCategory);
-
-      this.TestHelper.AddToTest("RunTestCategory", testCategory, true, config.ProjectAlias)
-        .Does(() =>
-        {
-          var settings = new DotNetCoreTestSettings();
-          settings.Filter = string.Format("{0}={1}", testConfig.IsXUnit ? "Category" : "TestCategory", testCategory);
-          settings.Configuration = config.Configuration;
-          settings.Framework = config.Framework;
-          settings.NoBuild = testConfig.NoBuild;
-
-          var targetDir = this.Context.MakeAbsolute(config.ArtifactDirectory);
-          this.Context.Information("ProjectFileDir 2: {0}", targetDir.FullPath);
-          targetDir = targetDir.Combine("TestResults");
-          this.Context.Information("ProjectFileDir 3: {0}", targetDir.FullPath);
-
-          foreach(var testProj in testConfig.GetTestProjects(config))
-          {
-            var testResultsTarget = targetDir.CombineWithFilePath(
-              string.Format("{0}-{1}-{2}-{3}.trx", testProj.Name, testCategory, config.Configuration, config.Framework));
-
-            settings.Logger = string.Format("trx;LogFileName={0}", testResultsTarget.FullPath);
-
-            this.Context.DotNetCoreTest(this.Context.MakeAbsolute(testProj.Path).FullPath, settings);  
-          }
-        });
-    }
+    testConfig.SetupClean(this.Context, config, this.TestHelper);
+    testConfig.SetupTest(this.Context, config, this.TestHelper);
   }
 }
 
